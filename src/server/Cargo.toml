@@ -1,0 +1,13 @@
+[package]
+name = "server"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+zmq = "0.9"
+rand = "0.8"
+rpubsub = { path = "../rpubsub" }
+
+[[bin]]
+name = "server"
+path = "./server.rs"
