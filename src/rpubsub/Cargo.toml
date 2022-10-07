@@ -1,0 +1,11 @@
+[package]
+name = "rpubsub"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+zmq = "0.9"
+
+[lib]
+name = "rpubsub"
+path = "./rpubsub.rs"
