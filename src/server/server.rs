@@ -1,5 +1,5 @@
 use std::env;
-use rpubsub::ServerAddress;
+use rpubsub::SocketAddress;
 //use zmq;
 
 
@@ -11,7 +11,7 @@ fn main() {
         println!("Usage: server <IP> <BIND_PORT>")
     }
 
-    let server_addr = ServerAddress{ip: args[1].clone(), bind_port: args[2].clone().parse::<u16>().unwrap()};
+    let server_addr = SocketAddress{ip: args[1].clone(), port: args[2].clone().parse::<u16>().unwrap()};
     let context = zmq::Context::new();
 
     let rep_socket = match context.socket(zmq::REP) {
@@ -19,14 +19,14 @@ fn main() {
                             Err(e) => panic!("Creating router socket; {}", e),
                         };
 
-    let endpoint = format!("tcp://{}:{}", server_addr.ip, server_addr.bind_port);
+    let endpoint = format!("tcp://{}:{}", server_addr.ip, server_addr.port);
 
     match rep_socket.bind(&endpoint) {
         Ok(()) => println!("Server listening at {}:{}", 
-                            server_addr.ip, server_addr.bind_port),
+                            server_addr.ip, server_addr.port),
 
         Err(e) => panic!("Binding socket address {}:{}; {}", 
-                                server_addr.ip, server_addr.bind_port, e)
+                                server_addr.ip, server_addr.port, e)
     };
 
     loop {
