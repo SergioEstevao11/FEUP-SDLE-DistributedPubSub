@@ -7,6 +7,8 @@ edition = "2021"
 zmq = "0.9"
 rand = "0.8"
 rpubsub = { path = "../rpubsub" }
+serde = {version = "1.0.145", features = ["derive"]}
+serde_json = {version = "1.0"}
 
 [[bin]]
 name = "server"

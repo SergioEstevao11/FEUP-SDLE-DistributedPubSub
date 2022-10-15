@@ -207,6 +207,8 @@ version = "0.1.0"
 dependencies = [
  "rand",
  "rpubsub",
+ "serde",
+ "serde_json",
  "zmq",
 ]
 

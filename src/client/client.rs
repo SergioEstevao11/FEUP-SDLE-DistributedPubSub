@@ -1,28 +1,22 @@
 use std::env;
-use rpubsub::{SocketAddress};
+use rpubsub::{ SocketAddress, Message };
 //use zmq;
 
 
 fn send_request(message: rpubsub::Message, req_socket: zmq::Socket) {
-
-    // use json serialize
+    todo!()
 }
 
 fn parse_operation(op: String) {
-
+    todo!()
 }
 
 fn main() {
-    //let m2 = rpubsub::Message::GET { sequence_num: 3, topic: String::from("HEY") };
-    //let serialized_message = serde_json::to_string(&m2).unwrap();
-    //println!("{}", serialized_message);
-    //let deserialized_message: Message = serde_json::from_str(&serialized_message).unwrap();
-        
     let args: Vec<String> = env::args().collect();
 
-    if args.len() != 4 {
+    if args.len() != 5 {
         println!("Wrong number of arguments");
-        println!("Usage: server <IP> <SERVER_IP> <SERVER_PORT> <OP>");
+        println!("Usage: client <IP> <SERVER_IP> <SERVER_PORT> <OP>");
         println!("OP: GET|<TOPIC>  
                     | PUT|<TOPIC>|<MSG>
                     | SUB|<TOPIC>
@@ -51,15 +45,17 @@ fn main() {
     };
 
     
-    match req_socket.send("hey", 0) {
-        Err(e) => panic!("Error sending message {}", e),
+    let msg = Message::GET { ip: String::from("127.0.0.1"), sequence_num: 1, 
+                                        topic: String::from("hey") };
 
-        Ok(()) => ()
+    match rpubsub::send_message_to(&req_socket, msg) {
+        Ok(_) => (),
+        Err(_) => panic!("Error sending message"),
     };
     
-    match req_socket.recv_msg(0) {
-        Ok(message) => println!("{}", message.as_str().unwrap()),
+    match rpubsub::receive_message_from(&req_socket) {
+        Ok(message) => println!("{}", message.to_string()),
 
-        Err(e) => panic!("Error getting message {}", e)
+        Err(_e) => panic!("Error getting message")
     };
 }
