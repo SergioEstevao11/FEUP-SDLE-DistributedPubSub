@@ -1,5 +1,11 @@
-use std::{env};
-use rpubsub::{SocketAddress, Message};
+
+#![allow(dead_code)]
+#![allow(unused_variables)]
+use std::time;
+use std::thread;
+//use std::{env, collections::VecDeque};
+
+use rpubsub::{SocketAddress};
 
 /* 
 
@@ -35,8 +41,51 @@ fn read_request(rep_socket: &zmq::Socket) {
 fn send_reply(rep_socket: &zmq::Socket) {
     todo!()
 }*/
+
+//type TopicsState = HashMap<Topic, TopicInfo>;
+
+/* 
 fn main() {
-    let args: Vec<String> = env::args().collect();
+    
+    let server_addr = SocketAddress{ip: String::from("127.0.0.2"), port: 9999};
+    let context = zmq::Context::new();
+
+    let rep_socket = match context.socket(zmq::REP) {
+                            Ok(socket) => socket,
+                            Err(e) => panic!("Creating router socket; {}", e),
+                        };
+
+    let endpoint = format!("tcp://{}:{}", server_addr.ip, server_addr.port);
+
+    match rep_socket.bind(&endpoint) {
+        Ok(()) => println!("Server listening at {}:{}", 
+                            server_addr.ip, server_addr.port),
+
+        Err(e) => panic!("Binding socket address {}:{}; {}", 
+                                server_addr.ip, server_addr.port, e)
+    };
+
+    loop {
+        let mut msg = zmq::Message::new();
+        let e2 = rep_socket.recv(&mut msg, 0);
+        println!("{}", msg.as_str().unwrap());
+        let time = time::Duration::from_millis(5000);
+        thread::sleep(time);
+        println!("{}", "no more sleep");
+        let e = rep_socket.send("bye", 0);
+
+        match e {
+            Ok(_) => println!("NO ERROR send"),
+            Err(_) => println!("ERROR send"),
+        }
+    }
+}*/
+
+
+fn main() {
+
+
+    /*let args: Vec<String> = env::args().collect();
 
     if args.len() != 3 {
         println!("wrong number of arguments");
@@ -73,5 +122,6 @@ fn main() {
             Ok(_) => (),
             Err(_) => ()
         }
-    }
+    }*/
+
 }

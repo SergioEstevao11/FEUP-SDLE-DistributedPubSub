@@ -13,3 +13,7 @@ serde_json = {version = "1.0"}
 [[bin]]
 name = "server"
 path = "./server.rs"
+
+[lib]
+name = "topic"
+path = "./topic.rs"

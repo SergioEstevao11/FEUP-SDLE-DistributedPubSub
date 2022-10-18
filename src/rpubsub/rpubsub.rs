@@ -1,3 +1,6 @@
+
+#![allow(dead_code)]
+#![allow(unused_variables)]
 extern crate strum;
 extern crate strum_macros;
 extern crate serde;
@@ -10,12 +13,14 @@ pub struct SocketAddress {
     pub port: u16,
 }
 
+pub type Topic = String;
+
 #[derive(Serialize, Deserialize, Debug, IntoStaticStr)]
 pub enum Message {
-    GET   { ip: String, sequence_num: u128, topic: String },
-    PUT   { ip: String, sequence_num: u128, topic: String, payload: String },
-    SUB   { ip: String, topic: String },
-    UNSUB { ip: String, topic: String },
+    GET   { ip: String, sequence_num: u128, topic: Topic },
+    PUT   { ip: String, sequence_num: u128, topic: Topic, payload: String },
+    SUB   { ip: String, topic: Topic },
+    UNSUB { ip: String, topic: Topic },
     UP    { ip: String, sequence_num: u128},
     REP   { ip: String, status: u8 }
 }
