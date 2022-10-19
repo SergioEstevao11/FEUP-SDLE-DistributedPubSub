@@ -48,7 +48,7 @@ fn main() {
     let msg = Message::GET { ip: String::from("127.0.0.1"), sequence_num: 1, 
                                         topic: String::from("hey") };
 
-    match rpubsub::send_message_to(&req_socket, msg) {
+    match rpubsub::send_message_to(&req_socket, &msg) {
         Ok(_) => (),
         Err(_) => panic!("Error sending message"),
     };

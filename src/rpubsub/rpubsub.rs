@@ -2,7 +2,12 @@ extern crate strum;
 extern crate strum_macros;
 extern crate serde;
 extern crate serde_json;
+extern crate sha2;
+
+use std::collections::HashMap;
+
 use serde::{Serialize, Deserialize};
+
 use strum_macros::{IntoStaticStr};
 
 pub struct SocketAddress {
@@ -10,20 +15,56 @@ pub struct SocketAddress {
     pub port: u16,
 }
 
+pub type Topic = String;
+pub type SequenceNum = u128; 
+pub type UpdateContent = String;
+pub type MessageHash = String;
+
 #[derive(Serialize, Deserialize, Debug, IntoStaticStr)]
 pub enum Message {
-    GET   { ip: String, sequence_num: u128, topic: String },
-    PUT   { ip: String, sequence_num: u128, topic: String, payload: String },
-    SUB   { ip: String, topic: String },
-    UNSUB { ip: String, topic: String },
-    UP    { ip: String, sequence_num: u128},
-    REP   { ip: String, status: u8 }
+    GET   { ip: String, topic: Topic, sequence_num: SequenceNum },
+    PUT   { ip: String, topic: Topic, sequence_num: SequenceNum, payload: UpdateContent },
+    SUB   { ip: String, topic: Topic },
+    UNSUB { ip: String, topic: Topic },
+    UP    { ip: String, sequence_nums: HashMap<Topic, SequenceNum> },
+    REP   { result: Result<ReplyOption, ServiceError> },
+    NOMSG
 }
 
-pub enum Error {
+#[derive(Serialize, Deserialize, Debug, IntoStaticStr)]
+pub enum ReplyOption {
+    NoOk,
+    TUP((Option<UpdateContent>, SequenceNum))
+}
+
+pub enum IOError {
+    ECON(zmq::Error),
+    EBIN(zmq::Error),
     ERCV(zmq::Error),
     ESND(zmq::Error),
     EDSL(serde_json::Error),
+}
+
+impl IOError {
+    pub fn to_string(&self) -> String {
+        let str = match self {
+            IOError::ECON(e) => format!("error: couldn't connect to the socket - {}", e),
+            IOError::EBIN(e) => format!("error: couldn't bind the socket - {}", e),
+            IOError::ERCV(e) => format!("error: couldn't receive message - {}", e),
+            IOError::ESND(e) => format!("error: couldn't send message - {}", e),
+            IOError::EDSL(e) => format!("error: received unknown message - {}", e),
+        };
+        return str;
+    }
+}
+
+#[derive(Serialize, Deserialize, Debug, IntoStaticStr)]
+pub enum ServiceError {
+    NOTOPIC,
+    NOSUB,
+    ALREASUB,
+    ALREAPUT,
+    UNKNOMSG
 }
 
 impl Message {
@@ -32,28 +73,48 @@ impl Message {
     }
 }
 
-pub fn send_message_to(socket: &zmq::Socket, message: Message) -> Result<(), Error>{
-    let serialized_message = serde_json::to_string(&message).unwrap();
+pub fn bind_to(socket: &zmq::Socket, socket_address: &SocketAddress) -> Result<(), IOError> {
+    let endpoint = format!("tcp://{}:{}", socket_address.ip, socket_address.port);
+
+    match socket.bind(&endpoint) {
+        Ok(()) => Ok(()),
+
+        Err(e) => Err(IOError::EBIN(e))
+    }
+}
+
+pub fn connect_to(socket: &zmq::Socket, socket_address: &SocketAddress) -> Result<(), IOError> {
+    let endpoint = format!("tcp://{}:{}", socket_address.ip, socket_address.port);
+
+    match socket.connect(&endpoint) {
+        Ok(()) => Ok(()),
+
+        Err(e) => Err(IOError::ECON(e))
+    }
+}
+
+pub fn send_message_to(socket: &zmq::Socket, message: &Message) -> Result<(), IOError> {
+    let serialized_message = serde_json::to_string(message).unwrap();
     
     return match socket.send(serialized_message.as_str(), 0) {
         Ok(_) => Ok(()),
-        Err(e) => Err(Error::ESND(e)),
+        Err(e) => Err(IOError::ESND(e)),
     };
     
 }
 
-pub fn receive_message_from(socket: &zmq::Socket) -> Result<Message, Error>{
+pub fn receive_message_from(socket: &zmq::Socket) -> Result<Message, IOError> {
     let mut msg = zmq::Message::new();
 
     match socket.recv(&mut msg, 0) {
         Ok(_) => (),
-        Err(e) => return Err(Error::ERCV(e)),
+        Err(e) => return Err(IOError::ERCV(e)),
     };
     
     let res: Result<Message, serde_json::Error> = serde_json::from_str(&msg.as_str().unwrap());
     
     return match res {
         Ok(message) => Ok(message),
-        Err(e) => Err(Error::EDSL(e)),
+        Err(e) => Err(IOError::EDSL(e)),
     }
 }
