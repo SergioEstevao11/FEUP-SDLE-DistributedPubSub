@@ -1,9 +1,4 @@
-
-#![allow(dead_code)]
-#![allow(unused_variables)]
-use std::time;
-use std::thread;
-//use std::{env, collections::VecDeque};
+use std::{env};
 
 use rpubsub::{SocketAddress};
 
