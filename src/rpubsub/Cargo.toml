@@ -9,6 +9,7 @@ strum = "0.24"
 strum_macros = "0.24"
 serde = {version = "1.0.145", features = ["derive"]}
 serde_json = {version = "1.0"}
+sha2 = {version="0.10.6"}
 
 [lib]
 name = "rpubsub"

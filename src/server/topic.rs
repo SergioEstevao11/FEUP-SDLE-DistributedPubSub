@@ -207,13 +207,13 @@ pub fn update_subscriber_update_ack(state: &mut TopicsState, topic: &rpubsub::To
 }
 
 pub fn get_next_subscriber_update(state: &mut TopicsState, topic: &rpubsub::Topic, ip: &String, sequence_num: rpubsub::SequenceNum) 
-                                                                -> Result<Option<String>, rpubsub::ServiceError> {
+                                                                -> Result<(Option<rpubsub::UpdateContent>, rpubsub::SequenceNum), rpubsub::ServiceError> {
     match update_subscriber_update_ack(state, topic, ip, sequence_num) {
         Ok(topic_update_idx) => {
             Ok(match topic_update_idx {
-                Some(idx) => Some(state.get_mut(topic).unwrap().update_queue.get(idx).unwrap().content.clone()),
+                Some(idx) => (Some(state.get_mut(topic).unwrap().update_queue.get(idx).unwrap().content.clone()), sequence_num),
 
-                None => None,
+                None => (None, sequence_num),
             })
         },
         
