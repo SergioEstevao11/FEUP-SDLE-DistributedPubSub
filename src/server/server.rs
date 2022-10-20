@@ -105,7 +105,7 @@ fn main() {
                         };
 
     let mut state = topic::TopicsState::new();
-
+    
     match rpubsub::bind_to(&rep_socket, &server_addr) {
         Ok(_) => println!("Server listening on {}:{}", server_addr.ip, server_addr.port),
         Err(e) => { 

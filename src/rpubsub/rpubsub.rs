@@ -4,7 +4,7 @@ extern crate serde;
 extern crate serde_json;
 extern crate sha2;
 
-use std::collections::HashMap;
+use std::{collections::HashMap, fmt::format};
 
 use serde::{Serialize, Deserialize};
 
@@ -47,29 +47,40 @@ pub enum IOError {
 
 impl IOError {
     pub fn to_string(&self) -> String {
-        let str = match self {
+        match self {
             IOError::ECON(e) => format!("error: couldn't connect to the socket - {}", e),
             IOError::EBIN(e) => format!("error: couldn't bind the socket - {}", e),
             IOError::ERCV(e) => format!("error: couldn't receive message - {}", e),
             IOError::ESND(e) => format!("error: couldn't send message - {}", e),
             IOError::EDSL(e) => format!("error: received unknown message - {}", e),
-        };
-        return str;
+        }
     }
 }
 
 #[derive(Serialize, Deserialize, Debug, IntoStaticStr)]
 pub enum ServiceError {
-    NOTOPIC,
-    NOSUB,
-    ALREASUB,
+    NOTOPIC(Topic),
+    NOSUB(Topic),
+    ALREASUB(Topic),
     ALREAPUT,
     UNKNOMSG
 }
 
+impl ServiceError {
+    pub fn to_string(&self) -> String {
+        match self {
+            ServiceError::NOTOPIC(topic) => format!("error: topic {} doesn't exist", topic),
+            ServiceError::NOSUB(topic) => format!("error: not subscribed to topic {}", topic),
+            ServiceError::ALREASUB(topic) => format!("error: already subscribed to topic {}", topic),
+            ServiceError::ALREAPUT => todo!(),
+            ServiceError::UNKNOMSG => String::from("error: unknown request"),
+        }
+    }
+}
+
 impl Message {
-    pub fn to_string(&self) -> &str {
-        return <&Message as Into<&str>>::into(self) as &str;
+    pub fn to_string(&self) -> String {
+        serde_json::to_string(self).unwrap()
     }
 }
 

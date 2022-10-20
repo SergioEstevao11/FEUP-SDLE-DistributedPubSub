@@ -1,6 +1,10 @@
-use std::collections::{ HashMap, VecDeque };
+extern crate serde;
+extern crate serde_json;
 
-#[derive(Debug)]
+use std::collections::{ HashMap, VecDeque };
+use serde::{Serialize, Deserialize};
+
+#[derive(Serialize, Deserialize, Debug)]
 struct Update {
     content: String,
     pending_updates: usize
@@ -8,13 +12,13 @@ struct Update {
 
 type UpdatesQueue = VecDeque<Update>;
 
-#[derive(Debug)]
+#[derive(Serialize, Deserialize, Debug)]
 struct SubscriptionInfo {
     last_recv_sequence_num: Option<rpubsub::SequenceNum>,
     topic_update_idx:       Option<usize>
 }
 
-#[derive(Debug)]
+#[derive(Serialize, Deserialize, Debug)]
 pub struct TopicInfo {
     subscriptions: HashMap<String, SubscriptionInfo>,
     update_queue: UpdatesQueue
@@ -77,7 +81,7 @@ pub fn add_subscription(state: &mut TopicsState, topic: &rpubsub::Topic, ip: &St
     let subscription = topic_info.subscriptions.get_mut(ip);
 
     match subscription {
-        Some(_) => Err(rpubsub::ServiceError::ALREASUB),
+        Some(_) => Err(rpubsub::ServiceError::ALREASUB(topic.clone())),
 
         None => {
             // Receives only updates inserted after his subscription
@@ -89,7 +93,7 @@ pub fn add_subscription(state: &mut TopicsState, topic: &rpubsub::Topic, ip: &St
 
 pub fn remove_subscription(state: &mut TopicsState, topic: &rpubsub::Topic, ip: &String) -> Result<(), rpubsub::ServiceError> {
     if !state.contains_key(topic) {
-        return Err(rpubsub::ServiceError::NOTOPIC);
+        return Err(rpubsub::ServiceError::NOTOPIC(topic.clone()));
     }
 
     let topic_info = state.get_mut(topic).unwrap();
@@ -117,7 +121,7 @@ pub fn remove_subscription(state: &mut TopicsState, topic: &rpubsub::Topic, ip: 
             Ok(())
         },
 
-        None => Err(rpubsub::ServiceError::NOSUB)
+        None => Err(rpubsub::ServiceError::NOSUB(topic.clone()))
     }
 }
 
@@ -125,7 +129,7 @@ pub fn remove_subscription(state: &mut TopicsState, topic: &rpubsub::Topic, ip: 
 
 pub fn add_update(state: &mut TopicsState, topic: &rpubsub::Topic, content: &String) -> Result<(), rpubsub::ServiceError> {
     if !state.contains_key(topic) {
-        return Err(rpubsub::ServiceError::NOTOPIC);
+        return Err(rpubsub::ServiceError::NOTOPIC(topic.clone()));
     }
 
     let topic_info = state.get_mut(topic).unwrap();
@@ -147,7 +151,7 @@ pub fn add_update(state: &mut TopicsState, topic: &rpubsub::Topic, content: &Str
 pub fn update_subscriber_update_ack(state: &mut TopicsState, topic: &rpubsub::Topic, ip: &String, sequence_num: rpubsub::SequenceNum) 
                                                                 -> Result<Option<usize>, rpubsub::ServiceError> {
     if !state.contains_key(topic) {
-        return Err(rpubsub::ServiceError::NOTOPIC);
+        return Err(rpubsub::ServiceError::NOTOPIC(topic.clone()));
     }
 
     let topic_info = state.get_mut(topic).unwrap();
@@ -202,7 +206,7 @@ pub fn update_subscriber_update_ack(state: &mut TopicsState, topic: &rpubsub::To
             Ok(ret_idx)
         },
 
-        None => Err(rpubsub::ServiceError::NOSUB)
+        None => Err(rpubsub::ServiceError::NOSUB(topic.clone()))
     }
 }
 
