@@ -68,8 +68,8 @@ pub enum ServiceError {
 }
 
 impl Message {
-    pub fn to_string(&self) -> &str {
-        return <&Message as Into<&str>>::into(self) as &str;
+    pub fn to_string(&self) -> String {
+        serde_json::to_string(self).unwrap()
     }
 }
 
