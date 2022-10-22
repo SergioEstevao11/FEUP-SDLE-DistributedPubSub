@@ -5,9 +5,9 @@ use rpubsub::{Message, SocketAddress};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::env;
-use std::fs::{self, File, OpenOptions};
-use std::io::{self, BufRead, Write};
-use std::path::Path;
+use std::fs;
+use std::io;
+
 
 const MAX_TRIES: u32 = 3;
 const TIMEOUT_MS: i64 = 3000;
@@ -50,7 +50,6 @@ fn get_state_file_content(client: &mut Client) -> bool {
     }
 }
 
-<<<<<<< HEAD
 fn save_state(client: & Client) -> Result<(), io::Error> {
     let client_path = format!("./clients/{}/", client.ip);
     let serialized_state = serde_json::to_string(&client.state).unwrap();
@@ -62,96 +61,6 @@ fn save_state(client: & Client) -> Result<(), io::Error> {
 
     fs::write(client_path.clone() + "state.json", serialized_state)
 }
-
-=======
->>>>>>> 3e14ee298ce600266fe1cbc5c77914a9fe0d4ca6
-/*sequence_numtopic).unwrap() += 1;
-
-    }
-
-    fn increment_put_counter(&mut self, topic: &str){
-        *(self.put_counters).get_mut(topic).unwrap() += 1;
-    }
-
-    fn read_savefile(&mut self) {
-        let binding = self.create_path();
-        let path = Path::new(binding.as_str());
-        let _ = match File::open(&path) {
-            Err(_) => self.create_savefile(true),
-            Ok(_) => self.recovery(),
-        };
-    }
-
-    fn create_savefile(&self,flag: bool) {
-        if flag == true {
-            println!("No file found for this client - creating new file...");
-        }
-        let binding = self.create_path();
-        let path = Path::new(binding.as_str());
-        let display = path.display();
-        let _file = match File::create(&path) {
-            Err(why) => panic!("couldn't create {}: {}", display, why),
-            Ok(_file) => _file,
-        };
-    }
-
-    fn create_path(&self) -> String {
-        let dir = "./savefiles/".to_owned();
-        let path_name = dir.clone() + &self.ip;
-        return path_name.to_string();
-    }
-
-    fn recovery(&mut self) {
-        self.sequence_numbers.clear();
-        let binding = self.create_path();
-        if let Ok(lines) = self.read_lines(binding) {
-            for line in lines {
-                if let Ok(ip) = line {
-                    let temp: Vec<&str> = ip.split(':').collect();
-                    let topic = temp[0].to_string();
-                    let sequence_num = temp[1].parse::<u128>().unwrap();
-                    self.sequence_numbers.insert(topic,sequence_num);
-                }
-            }
-        }
-    }
-    fn read_lines<P>(&self,filename: P) -> io::Result<io::Lines<io::BufReader<File>>>
-    where
-        P: AsRef<Path>,
-    {
-        let file = File::open(filename)?;
-        Ok(io::BufReader::new(file).lines())
-    }
-
-    fn write_newline(&self,topic: &str, num: &str) {
-        let binding = self.create_path();
-        let mut file = OpenOptions::new()
-            .write(true)
-            .append(true)
-            .open(binding)
-            .unwrap();
-
-        // write a newline to the file
-        if let Err(e) = writeln!(file, "{}:{}", topic,num) {
-            eprintln!("Couldn't write to file: {}", e);
-        }
-    }
-
-    fn save_client_state(&mut self, topic: &str){
-        if self.sequence_numbers.contains_key(topic) {
-            for (key, val) in self.sequence_numbers.iter_mut() {
-                if key == topic{
-                    *val += 1;
-                }
-            }    } else {
-                self.sequence_numbers.insert((&"topic").to_string(), 1);
-        }
-        self.create_savefile(false);
-        for (key,value) in &self.sequence_numbers {
-            self.write_newline( &key, &value.to_string());
-        }
-    }
-}*/
 
 fn process_operation(client: &mut Client, op: &String) -> Result<Message, String> {
     let operands: Vec<&str> = op.split(" ").collect();
@@ -333,13 +242,9 @@ fn process_reply(client: &mut Client, request: &Message, reply: &Message) {
                         rpubsub::ReplyOption::TUP(tup) => {
                             if *sequence_num == tup.1 {
                                 if tup.0.is_some() {
-<<<<<<< HEAD
                                     if let Some(counter) =
                                         client.state.sequence_numbers.get_mut(topic)
                                     {
-=======
-                                    if let Some(counter) = client.state.sequence_numbers.get_mut(topic) {
->>>>>>> 3e14ee298ce600266fe1cbc5c77914a9fe0d4ca6
                                         *counter += 1;
                                     }
                                 }
@@ -383,11 +288,12 @@ pub fn send_message_with_retries(socket: &zmq::Socket, message: &Message) -> Mes
                     Err(_) => panic!("ssss"),
                 };
             }
-            Err(e) => {
+            Err(_) => {
                 if tries_counter > MAX_TRIES {
                     panic!("error: exceeded tries in polling");
                 } else {
                     tries_counter += 1;
+                    println!("info: Poll timeout exceeded. Retrying")
                 }
             }
         }
@@ -460,118 +366,13 @@ fn main() {
                 println!("Received reply {}", reply.to_string());
 
                 process_reply(&mut client, &request, &reply);
-<<<<<<< HEAD
 
                 match save_state(&client){
                     Err(e) => println!("error: while saving state. e: {}", e),
                     Ok(_) => (),
                 }
-=======
->>>>>>> 3e14ee298ce600266fe1cbc5c77914a9fe0d4ca6
             }
             Err(e) => println!("{}", e),
         }
     }
-
-    /*
-    client.read_savefile();
-
-    let mut poll_list = [req_socket.as_poll_item(zmq::POLLIN)];
-
-    //Main message loop
-    loop {
-        let op: String = env::args().collect();
-        let msg: Message;
-        let msg = match parse_operation(&mut client, op) {
-            Ok(ret_msg) => ret_msg,
-            Err(_) => {
-                println!("Invalid operation arguments");
-                println!(
-                    "OP: GET|<TOPIC>
-                    | PUT|<TOPIC>|<MSG>
-                    | SUB|<TOPIC>
-                    | UNSUB|<TOPIC>"
-                );
-                continue;
-            }
-        };
-
-
-        match rpubsub::send_message_to(&req_socket, &msg){
-            Ok(_) => println!("Sent message!"),
-            Err(_) => panic!("Error sending message"),
-        };
-
-        //client.save_client_state(topic);
-
-
-        //poll
-        let mut poll_list = [req_socket.as_poll_item(zmq::POLLIN)];
-        let mut tries_counter = 0;
-
-        let mut revent_list = Vec::new();
-        println!("Polling...");
-        loop{
-            match zmq::poll(&mut poll_list, 3000) {
-                Ok(_) => {
-                    for poll_item in poll_list.into_iter() {
-                        revent_list.push(poll_item.get_revents());
-                    }
-                    break;
-                },
-                Err(e) => {
-                    if tries_counter > MAX_TRIES{
-                        panic!("Error: exceeded tries in polling");
-                    }
-                    else{
-                        tries_counter+=1;
-                        match rpubsub::send_message_to(&req_socket, &msg){
-                            Ok(_) => println!("Sent message"),
-                            Err(_) => panic!("Error sending message"),
-                        };
-
-                    }
-                },
-            }
-        }
-        //receive message
-
-        match rpubsub::receive_message_from(&req_socket){
-            Ok(rec_msg) => {
-                match msg{
-                    Message::GET { ip, topic, sequence_num } => {
-                        if client.sequence_numbers[&topic] == sequence_num{
-                            println!("Received message! {}", rec_msg.to_string());
-                            client.increment_sequence_numbers(&topic);
-                            client.save_client_state(&topic);
-                        }
-                        else{
-                            println!("Received message, but outdated content! {}", rec_msg.to_string());
-                        }
-                    }
-                    Message::PUT { ip, topic, sequence_num, payload } => {
-                        println!("Received message! {}", rec_msg.to_string());
-                        client.increment_put_counter(&topic);
-                    }
-                    Message::SUB { ip, topic } => {
-                        println!("Received message! {}", rec_msg.to_string());
-
-                        if !client.sequence_numbers.contains_key(&topic) {
-                            client.sequence_numbers.insert(topic.clone(), 0);
-                        }
-
-                        if !client.put_counters.contains_key(&topic) {
-                            client.put_counters.insert(topic.clone(), 0);
-                        }
-                    }
-                    _ => {println!("Received message! {}", rec_msg.to_string());}
-                }
-
-            }
-            Err(e) => println!("Error! {}", e.to_string()),
-        };
-
-
-
-    }*/
 }
