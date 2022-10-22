@@ -50,6 +50,7 @@ fn get_state_file_content(client: &mut Client) -> bool {
     }
 }
 
+<<<<<<< HEAD
 fn save_state(client: & Client) -> Result<(), io::Error> {
     let client_path = format!("./clients/{}/", client.ip);
     let serialized_state = serde_json::to_string(&client.state).unwrap();
@@ -62,6 +63,8 @@ fn save_state(client: & Client) -> Result<(), io::Error> {
     fs::write(client_path.clone() + "state.json", serialized_state)
 }
 
+=======
+>>>>>>> 3e14ee298ce600266fe1cbc5c77914a9fe0d4ca6
 /*sequence_numtopic).unwrap() += 1;
 
     }
@@ -330,9 +333,13 @@ fn process_reply(client: &mut Client, request: &Message, reply: &Message) {
                         rpubsub::ReplyOption::TUP(tup) => {
                             if *sequence_num == tup.1 {
                                 if tup.0.is_some() {
+<<<<<<< HEAD
                                     if let Some(counter) =
                                         client.state.sequence_numbers.get_mut(topic)
                                     {
+=======
+                                    if let Some(counter) = client.state.sequence_numbers.get_mut(topic) {
+>>>>>>> 3e14ee298ce600266fe1cbc5c77914a9fe0d4ca6
                                         *counter += 1;
                                     }
                                 }
@@ -453,11 +460,14 @@ fn main() {
                 println!("Received reply {}", reply.to_string());
 
                 process_reply(&mut client, &request, &reply);
+<<<<<<< HEAD
 
                 match save_state(&client){
                     Err(e) => println!("error: while saving state. e: {}", e),
                     Ok(_) => (),
                 }
+=======
+>>>>>>> 3e14ee298ce600266fe1cbc5c77914a9fe0d4ca6
             }
             Err(e) => println!("{}", e),
         }
