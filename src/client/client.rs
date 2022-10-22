@@ -50,6 +50,18 @@ fn get_state_file_content(client: &mut Client) -> bool {
     }
 }
 
+fn save_state(client: & Client) -> Result<(), io::Error> {
+    let client_path = format!("./clients/{}/", client.ip);
+    let serialized_state = serde_json::to_string(&client.state).unwrap();
+    
+    match fs::create_dir_all(&client_path){
+        Err(e) => return Err(e),
+        Ok(_) => (),
+    }
+
+    fs::write(client_path.clone() + "state.json", serialized_state)
+}
+
 /*sequence_numtopic).unwrap() += 1;
 
     }
@@ -318,7 +330,9 @@ fn process_reply(client: &mut Client, request: &Message, reply: &Message) {
                         rpubsub::ReplyOption::TUP(tup) => {
                             if *sequence_num == tup.1 {
                                 if tup.0.is_some() {
-                                    if let Some(counter) = client.state.sequence_numbers.get_mut(topic) {
+                                    if let Some(counter) =
+                                        client.state.sequence_numbers.get_mut(topic)
+                                    {
                                         *counter += 1;
                                     }
                                 }
@@ -439,6 +453,11 @@ fn main() {
                 println!("Received reply {}", reply.to_string());
 
                 process_reply(&mut client, &request, &reply);
+
+                match save_state(&client){
+                    Err(e) => println!("error: while saving state. e: {}", e),
+                    Ok(_) => (),
+                }
             }
             Err(e) => println!("{}", e),
         }
