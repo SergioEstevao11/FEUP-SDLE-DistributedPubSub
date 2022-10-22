@@ -2,34 +2,30 @@ extern crate serde;
 extern crate serde_json;
 
 use rpubsub::{Message, SocketAddress};
-use std::fs::{File, OpenOptions, self};
-use std::io::{self, BufRead,Write};
-use std::path::Path;
-use std::env;
+use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
-use serde::{Serialize, Deserialize};
-
+use std::env;
+use std::fs::{self, File, OpenOptions};
+use std::io::{self, BufRead, Write};
+use std::path::Path;
 
 const MAX_TRIES: u32 = 3;
-const TIMEOUT_MS: i64 = 3000; 
-
+const TIMEOUT_MS: i64 = 3000;
 
 //use zmq;
 
 pub struct Client {
     pub ip: String,
-    pub state: State
+    pub state: State,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct State {
     pub sequence_numbers: HashMap<String, u128>, //hashmap [topic] = sequence_number
-    pub put_counters: HashMap<String, u128>, //hashmap [topic] = counter
+    pub put_counters: HashMap<String, u128>,     //hashmap [topic] = counter
 }
 
-
-
-fn get_state_file_content(client: &mut Client) ->  bool {
+fn get_state_file_content(client: &mut Client) -> bool {
     let client_path = format!("./clients/{}/", client.ip);
     let state_path = client_path.clone() + "state.json";
 
@@ -54,10 +50,7 @@ fn get_state_file_content(client: &mut Client) ->  bool {
     }
 }
 
-/*
-impl Client {
-    fn increment_sequence_numbers(&mut self, topic: &str){
-        *(self.sequence_numbers).get_mut(topic).unwrap() += 1;
+/*sequence_numtopic).unwrap() += 1;
 
     }
 
@@ -73,7 +66,7 @@ impl Client {
             Ok(_) => self.recovery(),
         };
     }
-    
+
     fn create_savefile(&self,flag: bool) {
         if flag == true {
             println!("No file found for this client - creating new file...");
@@ -86,13 +79,13 @@ impl Client {
             Ok(_file) => _file,
         };
     }
-    
+
     fn create_path(&self) -> String {
         let dir = "./savefiles/".to_owned();
         let path_name = dir.clone() + &self.ip;
         return path_name.to_string();
     }
-    
+
     fn recovery(&mut self) {
         self.sequence_numbers.clear();
         let binding = self.create_path();
@@ -114,7 +107,7 @@ impl Client {
         let file = File::open(filename)?;
         Ok(io::BufReader::new(file).lines())
     }
-    
+
     fn write_newline(&self,topic: &str, num: &str) {
         let binding = self.create_path();
         let mut file = OpenOptions::new()
@@ -122,13 +115,13 @@ impl Client {
             .append(true)
             .open(binding)
             .unwrap();
-    
+
         // write a newline to the file
         if let Err(e) = writeln!(file, "{}:{}", topic,num) {
             eprintln!("Couldn't write to file: {}", e);
         }
     }
-    
+
     fn save_client_state(&mut self, topic: &str){
         if self.sequence_numbers.contains_key(topic) {
             for (key, val) in self.sequence_numbers.iter_mut() {
@@ -147,7 +140,7 @@ impl Client {
 
 fn process_operation(client: &mut Client, op: &String) -> Result<Message, String> {
     let operands: Vec<&str> = op.split(" ").collect();
-    
+
     println!("{:#?}", operands);
 
     if operands.len() < 2 {
@@ -159,15 +152,15 @@ fn process_operation(client: &mut Client, op: &String) -> Result<Message, String
             if operands.len() != 2 {
                 return Err(String::from("error: missing parameters"));
             }
-        },
+        }
 
         "PUT" => {
             if operands.len() != 3 {
                 return Err(String::from("error: missing parameters"));
             }
-        },
+        }
 
-        _ => ()
+        _ => (),
     };
 
     // TODO THIS
@@ -176,48 +169,179 @@ fn process_operation(client: &mut Client, op: &String) -> Result<Message, String
                 client.sequence_numbers.insert(topic.clone(), 0);
                 println!("info: no sequence number is associated to topic {}. Creating one", topic);
             }
-    
+
     */
     let topic = String::from(operands[1]);
     match operands[0] {
-        "SUB" => Ok(Message::SUB { ip: client.ip.clone(), topic: topic }),
+        "SUB" => Ok(Message::SUB {
+            ip: client.ip.clone(),
+            topic: topic,
+        }),
 
-
-        "UNSUB" => Ok(Message::UNSUB { ip: client.ip.clone(), topic: topic }),
+        "UNSUB" => Ok(Message::UNSUB {
+            ip: client.ip.clone(),
+            topic: topic,
+        }),
 
         "PUT" => {
             // The client doesn't need to subscribe to put a message on a topic
             if !client.state.put_counters.contains_key(&topic) {
                 client.state.put_counters.insert(topic.clone(), 0);
-                println!("info: no put counter is associated to topic {}. Creating one", topic);
+                println!(
+                    "info: no put counter is associated to topic {}. Creating one",
+                    topic
+                );
             }
             // TODO
             let payload = String::from(operands[2]);
-            Ok(Message::PUT { ip: client.ip.clone(), topic: topic.clone(), sequence_num: *client.state.put_counters.get(&topic).unwrap(), payload: payload })
-        },
+            Ok(Message::PUT {
+                ip: client.ip.clone(),
+                topic: topic.clone(),
+                sequence_num: *client.state.put_counters.get(&topic).unwrap(),
+                payload: payload,
+            })
+        }
 
         "GET" => {
             if !client.state.sequence_numbers.contains_key(&topic) {
-                Err::<Message, String>(String::from(format!("error: not subscribed to topic {}", topic)));
+                return Err::<Message, String>(String::from(format!(
+                    "error: not subscribed to topic {}",
+                    topic
+                )));
             }
 
-            Ok(Message::GET { ip: client.ip.clone(), sequence_num: *client.state.sequence_numbers.get(&topic).unwrap(), topic: topic, })
-        },
+            Ok(Message::GET {
+                ip: client.ip.clone(),
+                sequence_num: *client.state.sequence_numbers.get(&topic).unwrap(),
+                topic: topic,
+            })
+        }
         _ => Err(String::from("error: unknown operation")),
     }
 }
 
 fn process_reply(client: &mut Client, request: &Message, reply: &Message) {
-    /*match reply {
+    match reply {
         Message::REP { result } => {
             match request {
-            
-            },
-        }
-        _ => println!("TO DO"),
-    }*/
-}
+                Message::SUB { ip: _, topic } => {
+                    if result.is_err() {
+                        println!(
+                            "error: cannot subsribe to topic. topic: {}; reason: {:?}",
+                            topic,
+                            result.as_ref().unwrap_err()
+                        );
+                        return;
+                    }
 
+                    if !client.state.sequence_numbers.contains_key(topic) {
+                        client.state.sequence_numbers.insert(topic.clone(), 0);
+                        println!(
+                            "info: no sequence number is associated to topic {}. Creating one",
+                            topic
+                        );
+                    }
+                }
+
+                Message::UNSUB { ip: _, topic } => {
+                    // This error should never happen
+                    if result.is_err() {
+                        println!(
+                            "error: cannot unsubsribe to topic. topic: {}; reason: {:?}",
+                            topic,
+                            &result.as_ref().unwrap_err()
+                        );
+                        return;
+                    }
+
+                    if client.state.sequence_numbers.contains_key(topic) {
+                        client.state.sequence_numbers.remove(topic);
+                        println!(
+                            "info: removed sequence number associated to topic {}",
+                            topic
+                        );
+                    }
+                }
+
+                Message::PUT {
+                    ip: _,
+                    topic,
+                    sequence_num: _,
+                    payload: _,
+                } => {
+                    if result.is_err() {
+                        println!(
+                            "error: cannot put message on topic. topic: {}; reason: {:?}",
+                            topic,
+                            &result.as_ref().unwrap_err()
+                        );
+                        return;
+                    }
+
+                    if !client.state.put_counters.contains_key(topic) {
+                        client.state.put_counters.insert(topic.clone(), 0);
+                        println!(
+                            "info: no put counter is associated to topic {}. Creating one",
+                            topic
+                        );
+                    }
+
+                    let reply_option = result.as_ref().unwrap();
+
+                    match reply_option {
+                        rpubsub::ReplyOption::NoOk => {
+                            if let Some(counter) = client.state.put_counters.get_mut(topic) {
+                                *counter += 1;
+                            }
+                        }
+                        rpubsub::ReplyOption::TUP(_) => (),
+                    }
+                }
+
+                Message::GET {
+                    ip: _,
+                    topic,
+                    sequence_num,
+                } => {
+                    if result.is_err() {
+                        println!(
+                            "error: cannot get message from topic. topic: {}; reason: {:?}",
+                            topic,
+                            &result.as_ref().unwrap_err()
+                        );
+                        return;
+                    }
+
+                    let reply_option = result.as_ref().unwrap();
+
+                    match reply_option {
+                        rpubsub::ReplyOption::TUP(tup) => {
+                            if *sequence_num == tup.1 {
+                                if tup.0.is_some() {
+                                    if let Some(counter) = client.state.sequence_numbers.get_mut(topic) {
+                                        *counter += 1;
+                                    }
+                                }
+                            } else {
+                                println!("error: receiving outdated messages. topic: {} seq_nums(client, server): ({}, {})", topic, sequence_num, tup.1);
+                                println!("info: Syncronizing local sequence number with server");
+
+                                if let Some(counter) = client.state.put_counters.get_mut(topic) {
+                                    *counter = tup.1;
+                                }
+                            }
+                        }
+                        rpubsub::ReplyOption::NoOk => (),
+                    }
+                }
+
+                // Message::UP { ip: _, sequence_nums } => {},
+                _ => (),
+            };
+        }
+        _ => (),
+    }
+}
 
 pub fn send_message_with_retries(socket: &zmq::Socket, message: &Message) -> Message {
     let mut poll_list = [socket.as_poll_item(zmq::POLLIN)];
@@ -234,20 +358,17 @@ pub fn send_message_with_retries(socket: &zmq::Socket, message: &Message) -> Mes
         match zmq::poll(&mut poll_list, TIMEOUT_MS) {
             Ok(_) => {
                 match rpubsub::receive_message_from(socket) {
-                    Ok(reply) => { 
-                        return reply
-                    }
+                    Ok(reply) => return reply,
                     Err(_) => panic!("ssss"),
                 };
-            },
+            }
             Err(e) => {
                 if tries_counter > MAX_TRIES {
                     panic!("error: exceeded tries in polling");
-                }
-                else {
+                } else {
                     tries_counter += 1;
                 }
-            },
+            }
         }
     }
 }
@@ -255,12 +376,11 @@ pub fn send_message_with_retries(socket: &zmq::Socket, message: &Message) -> Mes
 fn main() {
     println!("{}", std::env::current_dir().unwrap().to_str().unwrap());
     let args: Vec<String> = env::args().collect();
-    
+
     if args.len() != 4 {
         println!("Wrong number of arguments");
         println!("Usage: client <IP> <SERVER_IP> <SERVER_PORT>");
     }
-    
 
     let server_addr = SocketAddress {
         ip: args[2].clone(),
@@ -269,11 +389,13 @@ fn main() {
 
     let mut client = Client {
         ip: args[1].clone(),
-        state: State {sequence_numbers: HashMap::new(), put_counters: HashMap::new()}
+        state: State {
+            sequence_numbers: HashMap::new(),
+            put_counters: HashMap::new(),
+        },
     };
 
     let with_state = get_state_file_content(&mut client);
-
 
     let context = zmq::Context::new();
 
@@ -282,25 +404,28 @@ fn main() {
         Err(e) => {
             println!("error: couldn't create socket: {}", e);
             return;
-        },
+        }
     };
 
-
-
     match rpubsub::connect_to(&req_socket, &server_addr) {
-        Ok(_) => println!("Connected to server listening on {}:{}", server_addr.ip, server_addr.port),
-        Err(e) => { 
+        Ok(_) => println!(
+            "Connected to server listening on {}:{}",
+            server_addr.ip, server_addr.port
+        ),
+        Err(e) => {
             println!("{}", e.to_string().as_str());
             return;
         }
     };
 
     if with_state {
-        let message = rpubsub::Message::UP { ip: client.ip.clone(), sequence_nums: client.state.sequence_numbers.clone() };
+        let message = rpubsub::Message::UP {
+            ip: client.ip.clone(),
+            sequence_nums: client.state.sequence_numbers.clone(),
+        };
         let reply = send_message_with_retries(&req_socket, &message);
         println!("Received reply: {}", reply.to_string());
     }
-
 
     loop {
         let mut line = String::new();
@@ -313,16 +438,11 @@ fn main() {
 
                 println!("Received reply {}", reply.to_string());
 
-
                 process_reply(&mut client, &request, &reply);
-
-
-            },
+            }
             Err(e) => println!("{}", e),
         }
-    }  
-
-
+    }
 
     /*
     client.read_savefile();
@@ -338,7 +458,7 @@ fn main() {
             Err(_) => {
                 println!("Invalid operation arguments");
                 println!(
-                    "OP: GET|<TOPIC>  
+                    "OP: GET|<TOPIC>
                     | PUT|<TOPIC>|<MSG>
                     | SUB|<TOPIC>
                     | UNSUB|<TOPIC>"
@@ -346,7 +466,7 @@ fn main() {
                 continue;
             }
         };
-    
+
 
         match rpubsub::send_message_to(&req_socket, &msg){
             Ok(_) => println!("Sent message!"),
@@ -421,11 +541,8 @@ fn main() {
             }
             Err(e) => println!("Error! {}", e.to_string()),
         };
-        
-    
+
+
 
     }*/
-
-
-
 }
