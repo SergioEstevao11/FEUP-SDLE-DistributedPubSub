@@ -1,6 +1,9 @@
 use std::collections::{ HashMap, VecDeque };
+use serde::{Deserialize, Serialize};
+use std::fs;
 
-#[derive(Debug)]
+
+#[derive(Serialize, Deserialize, Debug)]
 struct Update {
     content: String,
     pending_updates: usize
@@ -8,13 +11,13 @@ struct Update {
 
 type UpdatesQueue = VecDeque<Update>;
 
-#[derive(Debug)]
+#[derive(Serialize, Deserialize, Debug)]
 struct SubscriptionInfo {
     last_recv_sequence_num: Option<rpubsub::SequenceNum>,
     topic_update_idx:       Option<usize>
 }
 
-#[derive(Debug)]
+#[derive(Serialize, Deserialize, Debug)]
 pub struct TopicInfo {
     subscriptions: HashMap<String, SubscriptionInfo>,
     update_queue: UpdatesQueue
@@ -32,10 +35,15 @@ impl TopicInfo {
     }
 }
 
-pub type TopicsState = HashMap<rpubsub::Topic, TopicInfo>;
+pub type Topics = HashMap<rpubsub::Topic, TopicInfo>;
 
-pub fn add_topic(state: &mut TopicsState, topic: &rpubsub::Topic) {
-    state.insert(topic.clone(), TopicInfo::new());
+#[derive(Serialize, Deserialize, Debug)]
+pub struct State {
+    pub topics: Topics
+}
+
+pub fn add_topic(state: &mut State, topic: &rpubsub::Topic) {
+    state.topics.insert(topic.clone(), TopicInfo::new());
 }
 
 fn topic_subscriber_num(topic_info: &TopicInfo) -> usize {
@@ -67,12 +75,12 @@ fn associate_subscribers_to_last_update(topic_info: &mut TopicInfo) {
     }
 }
 
-pub fn add_subscription(state: &mut TopicsState, topic: &rpubsub::Topic, ip: &String) -> Result<(), rpubsub::ServiceError> {
-    if !state.contains_key(topic) {
+pub fn add_subscription(state: &mut State, topic: &rpubsub::Topic, ip: &String, path: &String) -> Result<(), rpubsub::ServiceError> {
+    if !state.topics.contains_key(topic) {
         add_topic(state, topic);
     }
 
-    let topic_info = state.get_mut(topic).unwrap();
+    let topic_info = state.topics.get_mut(topic).unwrap();
 
     let subscription = topic_info.subscriptions.get_mut(ip);
 
@@ -82,17 +90,20 @@ pub fn add_subscription(state: &mut TopicsState, topic: &rpubsub::Topic, ip: &St
         None => {
             // Receives only updates inserted after his subscription
             topic_info.subscriptions.insert(ip.clone(), SubscriptionInfo { last_recv_sequence_num: None, topic_update_idx: None });
+            
+            fs::write(path, serde_json::to_string(state).unwrap());
+
             Ok(())
         }
     }
 }
 
-pub fn remove_subscription(state: &mut TopicsState, topic: &rpubsub::Topic, ip: &String) -> Result<(), rpubsub::ServiceError> {
-    if !state.contains_key(topic) {
+pub fn remove_subscription(state: &mut State, topic: &rpubsub::Topic, ip: &String, path: &String) -> Result<(), rpubsub::ServiceError> {
+    if !state.topics.contains_key(topic) {
         return Err(rpubsub::ServiceError::NOTOPIC);
     }
 
-    let topic_info = state.get_mut(topic).unwrap();
+    let topic_info = state.topics.get_mut(topic).unwrap();
 
     let subscription = topic_info.subscriptions.get_mut(ip);
 
@@ -114,6 +125,8 @@ pub fn remove_subscription(state: &mut TopicsState, topic: &rpubsub::Topic, ip: 
 
             remove_nonpending_updates(update_queue);
            
+            fs::write(path, serde_json::to_string(state).unwrap());
+
             Ok(())
         },
 
@@ -123,12 +136,12 @@ pub fn remove_subscription(state: &mut TopicsState, topic: &rpubsub::Topic, ip: 
 
 
 
-pub fn add_update(state: &mut TopicsState, topic: &rpubsub::Topic, content: &String) -> Result<(), rpubsub::ServiceError> {
-    if !state.contains_key(topic) {
+pub fn add_update(state: &mut State, topic: &rpubsub::Topic, content: &String, path: &String) -> Result<(), rpubsub::ServiceError> {
+    if !state.topics.contains_key(topic) {
         return Err(rpubsub::ServiceError::NOTOPIC);
     }
 
-    let topic_info = state.get_mut(topic).unwrap();
+    let topic_info = state.topics.get_mut(topic).unwrap();
 
     let sub_num = topic_subscriber_num(&topic_info);
 
@@ -141,16 +154,19 @@ pub fn add_update(state: &mut TopicsState, topic: &rpubsub::Topic, content: &Str
     // when a topic doesnt have an update and gets one, update all None topic_update_idxs
     associate_subscribers_to_last_update(topic_info);
 
+    fs::write(path, serde_json::to_string(state).unwrap());
+
     Ok(())
 }
 
-pub fn update_subscriber_update_ack(state: &mut TopicsState, topic: &rpubsub::Topic, ip: &String, sequence_num: rpubsub::SequenceNum) 
+pub fn update_subscriber_update_ack(state: &mut State, topic: &rpubsub::Topic, ip: &String, 
+                                        sequence_num: rpubsub::SequenceNum, path: &String) 
                                                                 -> Result<Option<usize>, rpubsub::ServiceError> {
-    if !state.contains_key(topic) {
+    if !state.topics.contains_key(topic) {
         return Err(rpubsub::ServiceError::NOTOPIC);
     }
 
-    let topic_info = state.get_mut(topic).unwrap();
+    let topic_info = state.topics.get_mut(topic).unwrap();
 
     let subscription_info = topic_info.subscriptions.get_mut(ip);
 
@@ -199,6 +215,8 @@ pub fn update_subscriber_update_ack(state: &mut TopicsState, topic: &rpubsub::To
                 }
             }
 
+            fs::write(path, serde_json::to_string(state).unwrap());
+
             Ok(ret_idx)
         },
 
@@ -206,12 +224,12 @@ pub fn update_subscriber_update_ack(state: &mut TopicsState, topic: &rpubsub::To
     }
 }
 
-pub fn get_next_subscriber_update(state: &mut TopicsState, topic: &rpubsub::Topic, ip: &String, sequence_num: rpubsub::SequenceNum) 
+pub fn get_next_subscriber_update(state: &mut State, topic: &rpubsub::Topic, ip: &String, sequence_num: rpubsub::SequenceNum, path: &String) 
                                                                 -> Result<(Option<rpubsub::UpdateContent>, rpubsub::SequenceNum), rpubsub::ServiceError> {
-    match update_subscriber_update_ack(state, topic, ip, sequence_num) {
+    match update_subscriber_update_ack(state, topic, ip, sequence_num, path) {
         Ok(topic_update_idx) => {
             Ok(match topic_update_idx {
-                Some(idx) => (Some(state.get_mut(topic).unwrap().update_queue.get(idx).unwrap().content.clone()), sequence_num),
+                Some(idx) => (Some(state.topics.get_mut(topic).unwrap().update_queue.get(idx).unwrap().content.clone()), sequence_num),
 
                 None => (None, sequence_num),
             })

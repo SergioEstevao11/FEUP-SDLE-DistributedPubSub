@@ -17,6 +17,7 @@ const TIMEOUT_MS: i64 = 3000;
 pub struct Client {
     pub ip: String,
     pub state: State,
+    pub state_path: String,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -26,8 +27,8 @@ pub struct State {
 }
 
 fn get_state_file_content(client: &mut Client) -> bool {
-    let client_path = format!("./clients/{}/", client.ip);
-    let state_path = client_path.clone() + "state.json";
+    let client_path = format!("./data/clients/{}/", client.ip);
+    client.state_path = client_path.clone() + "state.json";
 
     let res = fs::read_dir(&client_path);
     const WITH_STATE: bool = true;
@@ -37,15 +38,14 @@ fn get_state_file_content(client: &mut Client) -> bool {
         fs::create_dir_all(&client_path);
         let serialized_state = serde_json::to_string(&client.state).unwrap();
 
-        fs::write(state_path, serialized_state);
+        fs::write(&client.state_path, serialized_state);
         !WITH_STATE
     } else {
         println!("info: client state found. backing up..");
-        let state_json = fs::read(state_path);
+        let state_json = fs::read(&client.state_path);
         //String::from_utf8(fs::read(client_path + "state.json").unwrap()).unwrap();
         //
-        let state: State = serde_json::from_slice(&state_json.unwrap().as_slice()).unwrap();
-        client.state = state;
+        client.state = serde_json::from_slice(&state_json.unwrap().as_slice()).unwrap();        ;
         WITH_STATE
     }
 }
@@ -307,6 +307,7 @@ fn main() {
     if args.len() != 4 {
         println!("Wrong number of arguments");
         println!("Usage: client <IP> <SERVER_IP> <SERVER_PORT>");
+        return;
     }
 
     let server_addr = SocketAddress {
@@ -320,6 +321,7 @@ fn main() {
             sequence_numbers: HashMap::new(),
             put_counters: HashMap::new(),
         },
+        state_path: String::new()
     };
 
     let with_state = get_state_file_content(&mut client);
