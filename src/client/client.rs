@@ -27,7 +27,7 @@ pub struct State {
 }
 
 fn get_state_file_content(client: &mut Client) -> bool {
-    let client_path = format!("./data/clients/{}/", client.ip);
+    let client_path = format!("./data/clients_data/{}/", client.ip);
     client.state_path = client_path.clone() + "state.json";
 
     let res = fs::read_dir(&client_path);
@@ -51,7 +51,7 @@ fn get_state_file_content(client: &mut Client) -> bool {
 }
 
 fn save_state(client: & Client) -> Result<(), io::Error> {
-    let client_path = format!("./clients/{}/", client.ip);
+    let client_path = format!("./data/clients_data/{}/", client.ip);
     let serialized_state = serde_json::to_string(&client.state).unwrap();
     
     match fs::create_dir_all(&client_path){
@@ -129,7 +129,7 @@ fn process_operation(client: &mut Client, op: &String) -> Result<Message, String
         "GET" => {
             if !client.state.sequence_numbers.contains_key(&topic) {
                 return Err::<Message, String>(String::from(format!(
-                    "error: not subscribed to topic {}",
+                    "error: no sequence number associated to topic {}. This might mean that the service didn't get subscription confirmation from the server",
                     topic
                 )));
             }

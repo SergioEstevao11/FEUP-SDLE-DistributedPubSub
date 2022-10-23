@@ -13,7 +13,7 @@ pub struct Server {
 }
 
 fn get_state_file_content(server: &mut Server) {
-    let server_path = String::from("./data/server/");
+    let server_path = String::from("./data/server_data/");
     server.state_path = server_path.clone() + "state.json";
 
     let res = fs::read_dir(&server_path);
