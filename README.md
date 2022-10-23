@@ -27,11 +27,10 @@ Having [`rust`](https://www.rust-lang.org/) and [`zmqlib`](https://zeromq.org/do
 
 - SUB &lt;TOPIC&gt;
 - UNSUB &lt;TOPIC&gt;
-- PUT &lt;TOPIC&gt; &lt;RETRY&gt; &lt;PAYLOAD&gt; 
+- PUT &lt;TOPIC&gt; &lt;PAYLOAD&gt; 
 - GET &lt;TOPIC&gt;
 
 Where:
 
 - &lt;TOPIC&gt; is any string
 - &lt;PAYLOAD&gt; is any string
-- &lt;RETRY&gt; is true | false
