@@ -270,34 +270,19 @@ fn process_reply(client: &mut Client, request: &Message, reply: &Message) {
 }
 
 pub fn send_message_with_retries(socket: &zmq::Socket, message: &Message) -> Message {
-    let mut poll_list = [socket.as_poll_item(zmq::POLLIN)];
-    let mut tries_counter = 0;
+    match rpubsub::send_message_to(socket, message) {
+        Ok(_) => {
+            println!("Sent message");
+            
+            match rpubsub::receive_message_from(socket) {
+            Ok(reply) => return reply,
+            Err(_) => return rpubsub::Message::NOMSG,
+            };
+        },
 
-    println!("Polling...");
+        Err(_) => return rpubsub::Message::NOMSG,
+    };
 
-    loop {
-        match rpubsub::send_message_to(socket, message) {
-            Ok(_) => println!("Sent message"),
-            Err(_) => panic!("Error sending message"),
-        };
-
-        match zmq::poll(&mut poll_list, TIMEOUT_MS) {
-            Ok(_) => {
-                match rpubsub::receive_message_from(socket) {
-                    Ok(reply) => return reply,
-                    Err(_) => panic!("ssss"),
-                };
-            }
-            Err(_) => {
-                if tries_counter > MAX_TRIES {
-                    panic!("error: exceeded tries in polling");
-                } else {
-                    tries_counter += 1;
-                    println!("info: Poll timeout exceeded. Retrying")
-                }
-            }
-        }
-    }
 }
 
 fn main() {
@@ -335,6 +320,10 @@ fn main() {
             return;
         }
     };
+
+
+    req_socket.set_rcvtimeo(TIMEOUT_MS.try_into().unwrap());
+    req_socket.set_linger(0);
 
     match rpubsub::connect_to(&req_socket, &server_addr) {
         Ok(_) => println!(
