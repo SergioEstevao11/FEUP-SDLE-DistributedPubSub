@@ -25,13 +25,13 @@ Having [`rust`](https://www.rust-lang.org/) and [`zmqlib`](https://zeromq.org/do
 
 ### Client operations
 
-- SUB <topic_name>
-- UNSUB <topic_name>
-- PUT <topic_name> <is_retry> <message> 
-- GET <topic_name>
+- SUB &lt;TOPIC&gt;
+- UNSUB &lt;TOPIC&gt;
+- PUT &lt;TOPIC&gt; &lt;RETRY&gt; &lt;PAYLOAD&gt; 
+- GET &lt;TOPIC&gt;
 
 Where:
 
-- <topic_name> is any string
-- &lt;message&gt; is any string
-- <is_retry> is true | false
+- &lt;TOPIC&gt; is any string
+- &lt;PAYLOAD&gt; is any string
+- &lt;RETRY&gt; is true | false
